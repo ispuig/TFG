@@ -1,18 +1,21 @@
 using System;
 using System.Collections;
 using System.IO;
+using System.Text;
 using UnityEngine;
+using Recorder = UnityEngine.Recorder;
 #if UNITY_ANDROID && !UNITY_EDITOR
 using UnityEngine.Android;
 #endif
 
-public class PassthroughStereoSaver : MonoBehaviour
+public class PassthroughStereoImage : MonoBehaviour
 {
     public Meta.XR.PassthroughCameraAccess LeftCamera;
     public Meta.XR.PassthroughCameraAccess RightCamera;
     public string AlbumName = "PassthroughStereo";
     public string FilePrefix = "stereo_";
-
+    [SerializeField] private int PixelOffset = 96; //64 ON QUEST 3S
+    
     /// <summary>
     /// Starts capture and save operation.
     /// </summary>
@@ -34,7 +37,6 @@ public class PassthroughStereoSaver : MonoBehaviour
             yield break;
         }
 
-        // Wait end of frame so render textures are up-to-date
         yield return new WaitForEndOfFrame();
 
         var leftRT = LeftCamera.GetTexture() as RenderTexture;
@@ -53,7 +55,6 @@ public class PassthroughStereoSaver : MonoBehaviour
             yield break;
         }
 
-        // Temporary RT to read pixels (use ARGB32 to be compatible)
         var tmp = RenderTexture.GetTemporary(w, h, 0, RenderTextureFormat.ARGB32);
         var prev = RenderTexture.active;
 
@@ -71,7 +72,6 @@ public class PassthroughStereoSaver : MonoBehaviour
         rightTex.ReadPixels(new Rect(0, 0, w, h), 0, 0);
         rightTex.Apply();
 
-        // Restore active RT and release temp
         RenderTexture.active = prev;
         RenderTexture.ReleaseTemporary(tmp);
 
@@ -84,23 +84,24 @@ public class PassthroughStereoSaver : MonoBehaviour
         combined.Apply();
 
         byte[] png = combined.EncodeToPNG();
+        
+        // Inject XMP metadata for stereo
+        byte[] stereoImage = InjectStereoMetadata(png, w * 2, h);
+        
         string filename = FilePrefix + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".png";
 
 #if UNITY_ANDROID && !UNITY_EDITOR
-        // Try to save to MediaStore (Scoped Storage). If permission required, request it first.
         if (!Permission.HasUserAuthorizedPermission("android.permission.WRITE_EXTERNAL_STORAGE"))
         {
             Permission.RequestUserPermission("android.permission.WRITE_EXTERNAL_STORAGE");
-            // give user a frame to respond; in production you'd want a robust flow
             yield return new WaitForSeconds(0.5f);
         }
-        SaveImageToGallery_Android(png, filename, AlbumName);
+        SaveImageToGallery_Android(stereoImage, filename, AlbumName);
 #else
-        // Editor / other platforms: save to persistentDataPath
         string path = Path.Combine(Application.persistentDataPath, filename);
         try
         {
-            File.WriteAllBytes(path, png);
+            File.WriteAllBytes(path, stereoImage);
             Debug.Log($"Saved stereo image to: {path}");
         }
         catch (Exception e)
@@ -109,10 +110,123 @@ public class PassthroughStereoSaver : MonoBehaviour
         }
 #endif
 
-        // cleanup
         Destroy(leftTex);
         Destroy(rightTex);
         Destroy(combined);
+    }
+
+    private byte[] InjectStereoMetadata(byte[] pngBytes, int width, int height)
+    {
+        // Create XMP metadata for left-right stereo
+        string xmpMetadata = CreateStereoXMP(width, height);
+        byte[] xmpBytes = Encoding.UTF8.GetBytes(xmpMetadata);
+        
+        // PNG chunk structure: Length (4 bytes) + Type (4 bytes) + Data + CRC (4 bytes)
+        byte[] chunkType = Encoding.ASCII.GetBytes("iTXt");
+        byte[] keyword = Encoding.UTF8.GetBytes("XML:com.adobe.xmp\0");
+        
+        // Prepare chunk data
+        byte[] chunkData = new byte[keyword.Length + xmpBytes.Length];
+        Array.Copy(keyword, 0, chunkData, 0, keyword.Length);
+        Array.Copy(xmpBytes, 0, chunkData, keyword.Length, xmpBytes.Length);
+        
+        // Calculate CRC
+        uint crc = CalculateCRC(chunkType, chunkData);
+        
+        // Build the complete chunk
+        using (MemoryStream ms = new MemoryStream())
+        {
+            // Write PNG signature and IHDR (first 33 bytes typically)
+            // Find IEND chunk position (last 12 bytes)
+            int iendPos = pngBytes.Length - 12;
+            
+            // Write everything up to IEND
+            ms.Write(pngBytes, 0, iendPos);
+            
+            // Write XMP chunk
+            ms.Write(BitConverter.GetBytes(ReverseBytes((uint)chunkData.Length)), 0, 4);
+            ms.Write(chunkType, 0, 4);
+            ms.Write(chunkData, 0, chunkData.Length);
+            ms.Write(BitConverter.GetBytes(ReverseBytes(crc)), 0, 4);
+            
+            // Write IEND chunk
+            ms.Write(pngBytes, iendPos, 12);
+            
+            return ms.ToArray();
+        }
+    }
+
+    private string CreateStereoXMP(int width, int height)
+    {
+        int halfWidth = width / 2;
+        
+        return $@"<?xpacket begin='' id='W5M0MpCehiHzreSzNTczkc9d'?>
+<x:xmpmeta xmlns:x='adobe:ns:meta/'>
+  <rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'>
+    <rdf:Description rdf:about='' xmlns:GImage='http://ns.google.com/photos/1.0/image/'>
+      <GImage:Mime>image/png</GImage:Mime>
+      <GImage:Data>
+        <rdf:Seq>
+          <rdf:li rdf:parseType='Resource'>
+            <GImage:Mime>image/png</GImage:Mime>
+            <GImage:Data>{Convert.ToBase64String(new byte[0])}</GImage:Data>
+          </rdf:li>
+        </rdf:Seq>
+      </GImage:Data>
+    </rdf:Description>
+    <rdf:Description rdf:about='' xmlns:GDepth='http://ns.google.com/photos/1.0/depthmap/'>
+      <GDepth:Format>RangeInverse</GDepth:Format>
+      <GDepth:Near>0</GDepth:Near>
+      <GDepth:Far>1</GDepth:Far>
+      <GDepth:Mime>image/png</GDepth:Mime>
+    </rdf:Description>
+    <rdf:Description rdf:about='' xmlns:GFocus='http://ns.google.com/photos/1.0/focus/'>
+      <GFocus:BlurAtInfinity>0</GFocus:BlurAtInfinity>
+      <GFocus:FocalDistance>0</GFocus:FocalDistance>
+      <GFocus:FocalPointX>0.5</GFocus:FocalPointX>
+      <GFocus:FocalPointY>0.5</GFocus:FocalPointY>
+    </rdf:Description>
+  </rdf:RDF>
+</x:xmpmeta>
+<?xpacket end='w'?>";
+    }
+
+    private uint CalculateCRC(byte[] type, byte[] data)
+    {
+        uint crc = 0xFFFFFFFF;
+        
+        // CRC for type
+        for (int i = 0; i < type.Length; i++)
+        {
+            crc = UpdateCRC(crc, type[i]);
+        }
+        
+        // CRC for data
+        for (int i = 0; i < data.Length; i++)
+        {
+            crc = UpdateCRC(crc, data[i]);
+        }
+        
+        return crc ^ 0xFFFFFFFF;
+    }
+
+    private uint UpdateCRC(uint crc, byte b)
+    {
+        crc ^= b;
+        for (int k = 0; k < 8; k++)
+        {
+            if ((crc & 1) != 0)
+                crc = 0xEDB88320 ^ (crc >> 1);
+            else
+                crc = crc >> 1;
+        }
+        return crc;
+    }
+
+    private uint ReverseBytes(uint value)
+    {
+        return (value & 0x000000FFU) << 24 | (value & 0x0000FF00U) << 8 |
+               (value & 0x00FF0000U) >> 8 | (value & 0xFF000000U) >> 24;
     }
 
 #if UNITY_ANDROID && !UNITY_EDITOR

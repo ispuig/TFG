@@ -1,7 +1,8 @@
+
 using UnityEngine;
 using System;
 using System.IO;
-
+/*
 public static class BitmapEncoder
 {
     public static void WriteBitmap(Stream stream, int width, int height, byte[] imageData)
@@ -92,3 +93,4 @@ public static class BitmapEncoder
         stream.Write(jpgBytes, 0, jpgBytes.Length);
     }
 }
+*/

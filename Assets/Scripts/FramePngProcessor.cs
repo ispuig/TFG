@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 public static class FramePngProcessor
 {
     public static async Task ProcessFramesAsync(
-        List<RenderTexture> frames,
+        List<StereoCapture> frames,
         string leftDir,
         string rightDir,
         int eyeWidth,
@@ -24,55 +24,38 @@ public static class FramePngProcessor
         {
             int frameIndex = i;
             await semaphore.WaitAsync();
-
+            // Capturamos el frame actual para evitar problemas de acceso concurrente a las RenderTextures, hilos ohh
             tasks.Add(Task.Run(() =>
             {
                 try
                 {
-                    RenderTexture frame = frames[frameIndex];
-                    Texture2D combined = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-                    Graphics.CopyTexture(frame, combined);
-
-                    Color[] combinedPixels = combined.GetPixels();
-
-                    Texture2D left = new Texture2D(eyeWidth, eyeHeight, TextureFormat.RGBA32, false);
-                    Texture2D right = new Texture2D(eyeWidth, eyeHeight, TextureFormat.RGBA32, false);
-
-                    Color[] leftPixels = new Color[eyeWidth * eyeHeight];
-                    Color[] rightPixels = new Color[eyeWidth * eyeHeight];
-
-                    for (int y = 0; y < eyeHeight; y++)
+                    StereoCapture frame = new StereoCapture
                     {
-                        for (int x = 0; x < eyeWidth; x++)
-                        {
-                            leftPixels[y * eyeWidth + x] = combinedPixels[y * eyeWidth * 2 + x];
-                            rightPixels[y * eyeWidth + x] = combinedPixels[y * eyeWidth * 2 + x + eyeWidth];
-                        }
-                    }
-
-                    left.SetPixels(leftPixels);
-                    right.SetPixels(rightPixels);
-                    left.Apply();
-                    right.Apply();
-
-                    File.WriteAllBytes(
-                        Path.Combine(leftDir, $"frame_{frameIndex:D06}.png"),
-                        left.EncodeToPNG());
-
-                    File.WriteAllBytes(
-                        Path.Combine(rightDir, $"frame_{frameIndex:D06}.png"),
-                        right.EncodeToPNG());
-
-                    UnityEngine.Object.DestroyImmediate(combined);
-                    UnityEngine.Object.DestroyImmediate(left);
-                    UnityEngine.Object.DestroyImmediate(right);
+                        LeftImage = frames[frameIndex].LeftImage,
+                        RightImage = frames[frameIndex].RightImage
+                    };
+                    // Procesar ojo izquierdo
+                    Texture2D leftTex = new Texture2D(eyeWidth, eyeHeight, TextureFormat.ARGB32, false);
+                    RenderTexture.active = frame.LeftImage;
+                    leftTex.ReadPixels(new Rect(0, 0, eyeWidth, eyeHeight), 0, 0);
+                    leftTex.Apply();
+                    byte[] leftPng = leftTex.EncodeToPNG();
+                    File.WriteAllBytes(Path.Combine(leftDir, $"frame_{frameIndex:D4}_left.png"), leftPng);
+                    UnityEngine.Object.Destroy(leftTex);
+                    // Procesar ojo derecho
+                    Texture2D rightTex = new Texture2D(eyeWidth, eyeHeight, TextureFormat.ARGB32, false);
+                    RenderTexture.active = frame.RightImage;
+                    rightTex.ReadPixels(new Rect(0, 0, eyeWidth, eyeHeight), 0, 0);
+                    rightTex.Apply();
+                    byte[] rightPng = rightTex.EncodeToPNG();
+                    File.WriteAllBytes(Path.Combine(rightDir, $"frame_{frameIndex:D4}_right.png"), rightPng);
+                    UnityEngine.Object.Destroy(rightTex);
                 }
-                finally
+                finally // Se actualiza el progreso y se libera el semáforo incluso si ocurre una excepción
                 {
                     onProgress?.Invoke((float)(frameIndex + 1) / frames.Count * 0.75f);
                     semaphore.Release();
-                }
-            }));
+                }}));
         }
 
         await Task.WhenAll(tasks);

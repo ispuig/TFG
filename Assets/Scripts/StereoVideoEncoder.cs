@@ -22,8 +22,8 @@ public class StereoVideoEncoder
     }
 
     public static async Task EncodeStereoVideoAsync(
-        List<RenderTexture> sideBySideFrames,
-        EncodingSettings settings,
+        List<StereoCapture> sideBySideFrames,
+        EncodingSettings settings, //settings del video a codificar
         Action<float> onProgress = null,
         Action<string> onCompleted = null,
         Action<Exception> onError = null)

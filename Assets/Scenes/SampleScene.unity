@@ -470,9 +470,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
-        m_TargetAssemblyTypeName: PassthroughStereoSaver, Assembly-CSharp
-        m_MethodName: SaveStereoNow
+      - m_Target: {fileID: 2070346236}
+        m_TargetAssemblyTypeName: InterfazCaptura, Assembly-CSharp
+        m_MethodName: AccionPrincipal
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -4079,7 +4079,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 668257684}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ee10491ef6d5d1d49a270cf6b09bdc19, type: 3}
   m_Name: 
@@ -4689,8 +4689,8 @@ MonoBehaviour:
   CameraPosition: 1
   RequestedResolution: {x: 1280, y: 960}
   _maxFramerate: 60
-  TargetMaterial: {fileID: 2100000, guid: 3c6527893f5ed1544b8dd63082f69669, type: 2}
-  _texturePropertyName: Right
+  TargetMaterial: {fileID: 0}
+  _texturePropertyName: _MainTex
 --- !u!114 &791241618
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -11093,7 +11093,7 @@ Camera:
   m_Depth: 0
   m_CullingMask:
     serializedVersion: 2
-    m_Bits: 4294967287
+    m_Bits: 4294967295
   m_RenderingPath: -1
   m_TargetTexture: {fileID: 0}
   m_TargetDisplay: 0
@@ -11640,6 +11640,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2070346234}
   - component: {fileID: 2070346235}
+  - component: {fileID: 2070346236}
   m_Layer: 0
   m_Name: CaptureBrain
   m_TagString: Untagged
@@ -11673,8 +11674,31 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4de8b185611d8c24f8f3877c658982da, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::StereoFrameCapture
-  stereoCompositeMaterial: {fileID: 0}
+  m_EditorClassIdentifier: Assembly-CSharp::GestorCaptura
+  camaraIzquierda: {fileID: 2088557892}
+  camaraDerecha: {fileID: 791241617}
+  stereoCompositeMaterial: {fileID: 2100000, guid: 3b1bb42759364c188b5bde4b53e8fe9d, type: 2}
+  tiempoEsperaCamaras: 15
+  tiempoEsperaFoto: 5
+  toleranciaStereoMs: 20
+  simularEnEditor: 1
+--- !u!114 &2070346236
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2070346232}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3e30023673674699aa70cb4f8e38e9c4, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::InterfazCaptura
+  gestor: {fileID: 2070346235}
+  boton: {fileID: 104737852}
+  textoBoton: {fileID: 1154626353}
+  lienzo: {fileID: 668257688}
+  materialVisor: {fileID: 2100000, guid: 73e35a0d9dc64ab6945f8f96bd0e8b45, type: 2}
 --- !u!1 &2073800977
 GameObject:
   m_ObjectHideFlags: 0
@@ -11739,7 +11763,7 @@ MonoBehaviour:
   CameraPosition: 0
   RequestedResolution: {x: 1280, y: 960}
   _maxFramerate: 60
-  TargetMaterial: {fileID: 2100000, guid: f8aa27df3b6f199489393fd077872800, type: 2}
+  TargetMaterial: {fileID: 0}
   _texturePropertyName: 
 --- !u!114 &2088557893
 MonoBehaviour:

@@ -203,8 +203,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 2070346233}
-        m_TargetAssemblyTypeName: PassthroughStereoSaver, Assembly-CSharp
-        m_MethodName: SaveStereoNow
+        m_TargetAssemblyTypeName: GestorCaptura, Assembly-CSharp
+        m_MethodName: CapturarFoto
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -2225,14 +2225,16 @@ MonoBehaviour:
   m_GameObject: {fileID: 2070346232}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ee8a0c6031702ac42accdd3455c88757, type: 3}
+  m_Script: {fileID: 11500000, guid: 4de8b185611d8c24f8f3877c658982da, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PassthroughStereoSaver
-  LeftCamera: {fileID: 2088557892}
-  RightCamera: {fileID: 791241617}
-  AlbumName: 3D Camera
-  FilePrefix: stereo_
-  PixelOffset: 96
+  m_EditorClassIdentifier: Assembly-CSharp::GestorCaptura
+  camaraIzquierda: {fileID: 2088557892}
+  camaraDerecha: {fileID: 791241617}
+  stereoCompositeMaterial: {fileID: 2100000, guid: 3b1bb42759364c188b5bde4b53e8fe9d, type: 2}
+  tiempoEsperaCamaras: 15
+  tiempoEsperaFoto: 5
+  toleranciaStereoMs: 20
+  simularEnEditor: 1
 --- !u!4 &2070346234
 Transform:
   m_ObjectHideFlags: 0

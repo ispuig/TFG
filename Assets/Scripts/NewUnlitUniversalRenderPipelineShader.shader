@@ -4,6 +4,7 @@ Shader "Hidden/StereoStitcher180" {
         _RightTex ("Right Eye", 2D) = "white" {}
     }
     SubShader {
+        Cull Off ZWrite Off ZTest Always
         Pass {
             CGPROGRAM
             #pragma vertex vert

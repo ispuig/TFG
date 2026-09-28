@@ -82,6 +82,7 @@
   <Project Path="VoiceSDK.Dictation.Runtime.csproj" />
   <Project Path="Meta.XR.Editor.PlayCompanion.csproj" />
   <Project Path="Meta.XR.Editor.Reflection.csproj" />
+  <Project Path="Assembly-CSharp.csproj" />
   <Project Path="Meta.XR.BuildingBlocks.DepthAPI.Editor.csproj" />
   <Project Path="Meta.XR.ImmersiveDebugger.Editor.csproj" />
   <Project Path="Unity.XR.CoreUtils.Editor.csproj" />
@@ -97,7 +98,6 @@
   <Project Path="Meta.XR.Audio.csproj" />
   <Project Path="MetaXRSimulatorCore.Editor.csproj" />
   <Project Path="Meta.XR.MultiplayerBlocks.Shared.Editor.csproj" />
-  <Project Path="Assembly-CSharp.csproj" />
   <Project Path="Unity.InputSystem.ForUI.csproj" />
   <Project Path="Meta.XR.Editor.RemoteContent.csproj" />
   <Project Path="Unity.AI.Navigation.csproj" />

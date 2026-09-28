@@ -18,6 +18,13 @@ try {
     $base = Get-Content $response.FullName | Where-Object {
         $_ -notmatch '^(-out:|-refout:|-analyzer:|/additionalfile:)' -and $_ -notmatch '^"Assets[\\/].*\.cs"$'
     }
+    # Una ruta explícita permite probar otro parche instalado sin reutilizar referencias a
+    # una instalación eliminada. Las referencias de paquetes del proyecto se conservan.
+    $base = @($base | ForEach-Object {
+        if ($_ -match '^-r:".*[\\/]Editor[\\/]Data[\\/](?<relativa>.*)"$') {
+            '-r:"' + (Join-Path $UnityEditorData $Matches.relativa).Replace('\','/') + '"'
+        } else { $_ }
+    })
     $sources = Get-ChildItem Assets/Scripts -Filter '*.cs' | ForEach-Object { '"Assets/Scripts/' + $_.Name + '"' }
     $editor = $base + $sources + '-out:".utmp/captura/Captura.Editor.dll"'
     $editor | Set-Content .utmp/captura/Captura.Editor.rsp

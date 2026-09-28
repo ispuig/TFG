@@ -1,10 +1,36 @@
 # Plan de implementación de captura estereoscópica para Meta Quest
 
-Fecha del análisis: 21 de septiembre de 2026.
+Fecha del análisis inicial: 21 de septiembre de 2026. Estado de implementación actualizado: 28 de septiembre de 2026.
 
 Este proyecto pretende convertir las imágenes de las dos cámaras físicas de Meta Quest 3 y Quest 3S en fotografías y vídeos con percepción de profundidad. La aplicación debe permitir elegir formatos y consultar las capturas en un visor estereoscópico propio. La conclusión del análisis es que primero hay que reparar y unificar la captura: actualmente la interfaz, las cámaras físicas y la codificación pertenecen a rutas parcialmente desconectadas.
 
-El entregable de esta revisión es este plan y la limpieza de scripts prescindibles solicitada. La implementación de la interfaz y las correcciones descritas quedan pendientes. Los hallazgos proceden de lectura de código, escenas, configuración, paquetes locales y del contenido completo de `Assets/Scripts/tfg1.0.docx`; no equivalen a una compilación ni a pruebas en unas Quest.
+El análisis inicial dio lugar a este plan y a la limpieza autorizada. Posteriormente se implementaron los cambios descritos en el estado siguiente. Las secciones de diagnóstico conservan la situación original para explicar las decisiones; sus líneas de código y nombres antiguos son referencias históricas, no una descripción del código actual.
+
+## Estado de la implementación — 28/09/2026
+
+| Área | Implementado | Validación pendiente |
+| --- | --- | --- |
+| Raíz y cámaras | `GestorCaptura` coherente con su archivo, proveedor MRUK, permiso asíncrono, timeout, estados, pares frescos y tolerancia temporal, suspensión y liberación | Conceder/denegar permiso y recuperar cámaras físicas en Quest 3/3S |
+| Fotos | Compositor SBS, PNG/JPEG, calidad persistente, miniatura, almacenamiento por sesión y publicación atómica | Orientación y profundidad con cámaras reales |
+| Vídeo | Puente Java MediaCodec/MediaMuxer, H.264/HEVC consultados junto con decodificador, perfiles 640×480/10, 320×240/15 y 640×480/15 por ojo; solo se ofrecen los admitidos; grabar, detener, descartar y guardar MP4 | Ejecutar codificador en Quest, inspeccionar MP4 y medir duración, memoria, temperatura y FPS efectivos; los perfiles son candidatos, no rendimiento garantizado |
+| Interfaz | Canvas uGUI/TMP conectado en `SampleScene`, vista previa izquierda, foto/vídeo, estado, ajustes, navegación con controlador o ratón; capa visible para cámara central | Comodidad, puntero y recorrido completo con controladores en XR |
+| Galería | Catálogo reconstruible, filtros, páginas de tres elementos, miniaturas, fecha/duración y borrado confirmado | Carga prolongada y repetición en dispositivo |
+| Visor | Shader que selecciona la mitad para cada ojo, reproducción/pausa y saltos de ±5 s con VideoPlayer | Estereoscopia bajo el modo XR de la escena y decodificación real de cada perfil |
+| Exportación | Fotos a Pictures/TFG y vídeos a Movies/TFG mediante MediaStore; copia pendiente hasta completar escritura | Acceso y reproducción desde galería nativa; reconocimiento automático de SBS no garantizado |
+| Limpieza | Prototipo fotográfico migrado también en recuperación; retirada completa de la ruta PNG/FFmpeg sin referencias activas | La aceptación en hardware sigue abierta |
+| Compatibilidad Android | Postprocesador de Editor para los namespaces compartidos de Meta XR 83 al generar con AGP 9 o superior | Recompilar APK; el ajuste se añadió después de detener las pruebas por petición del usuario |
+
+El vídeo conserva **un único frame en vuelo**: la adquisición espera al consumidor y omite intervalos vencidos conservando timestamps monotónicos. Esto limita los buffers de la aplicación independientemente de la duración; no equivale a medir la memoria interna del codificador. Cada frame 640×480 por ojo ocupa 2.457.600 bytes RGBA; existen además copias JNI, textura GPU y buffers nativos. No se guarda una secuencia de PNG para producir el MP4.
+
+Decisiones concretadas respecto a la propuesta: foto y vídeo tienen botones directos; el índice se reconstruye desde `captura.json` por carpeta; la búsqueda temporal usa ±5 segundos; los ajustes de vídeo son perfiles acotados; no hay audio. La suspensión descarta una sesión no publicada y avisa al recuperar las cámaras. Un cierre forzado del proceso puede dejar un temporal oculto; nunca se muestra como captura terminada. HEVC se consulta por capacidades, pero sigue pendiente de validación real antes de una entrega final.
+
+Pruebas locales disponibles en `Tools`: compilación C# para Editor y ramas Android; 32 comprobaciones de estados, sincronización, almacenamiento, concurrencia y cancelación; compilación Java contra SDK Android y prueba de conversión YUV con distintos strides; prueba gráfica en Unity de PNG/JPEG, composición y orientación, RGBA de vídeo, miniaturas y shader por ojo. La comprobación de las dos escenas y las cuatro pantallas también pasa. **Compilar las ramas Android no es generar un APK ni ejecutar MediaCodec en el visor.** Evidencias y límites en [Documentacion/Validacion/RESULTADOS.md](Documentacion/Validacion/RESULTADOS.md).
+
+El identificador `.meta` de `RgbaYuv.java` tenía 33 caracteres y Unity no importaba el plugin correctamente: se ha corregido a un GUID de 32 caracteres y se ha añadido su comprobación a la prueba de proyecto. También se corrigió la cámara central, que excluía la capa del Canvas del render normal.
+
+Limpieza adicional a la inicial: eliminados `PassthroughStereoImage.cs`, `StereoVideoEncoder.cs`, `FramePngProcessor.cs`, `FFmpegCommandBuilder.cs` y `EncodingWorker.cs`, junto a sus `.meta`. La escena de recuperación conserva una captura de foto conectada al gestor común; la interfaz completa está en `SampleScene`. Los SDK, paquetes y ajustes previos del usuario se conservan.
+
+**Pendiente para cerrar el plan:** obtener el APK y completar la matriz T02–T15 en Quest, especialmente grabaciones de 10/60 segundos, tres sesiones seguidas, suspensión, profundidad L/R, exportación y mediciones de recursos. La compilación nativa ARM64/IL2CPP con Unity 6000.3.23f1 terminó, pero el empaquetado falló por namespaces compartidos de Meta XR 83 con AGP 9. Se añadió `Assets/Editor/CompatibilidadAndroidMeta.cs` para esa combinación; su efecto aún no se ha verificado y no se han ejecutado más pruebas tras la petición del usuario. No queda una pantalla principal ni una función del alcance acordado sin implementación; la integración y aceptación en dispositivo siguen abiertas. Las casillas de las fases mezclaban construcción y aceptación: se mantienen como checklist de aceptación original y no se marca una fase completa solo porque su código esté escrito. Instrucciones y límites actuales en [README.md](README.md).
 
 ## 1. Objetivos y alcance
 
@@ -21,7 +47,7 @@ El resumen también plantea la visualización en la galería nativa de Quest y e
 
 El documento no fija formatos concretos, resolución, FPS, audio ni duración máxima. Las opciones propuestas aquí son decisiones de implementación que deberán validarse en hardware. Audio, nube, edición multimedia y vídeo espacial multivista específico de Apple quedan fuera de la primera versión. El párrafo del resumen sobre generación procedural de mazmorras no corresponde a los objetivos de captura ni al código analizado; conviene corregir esa incoherencia en la memoria del TFG, sin convertirla en requisito de esta aplicación.
 
-## 2. Funcionamiento actual
+## 2. Funcionamiento observado en el análisis inicial
 
 ### 2.1 Entorno y escena
 
@@ -53,7 +79,7 @@ La flecha discontinua indica una intención de implementación, no una ruta oper
 
 Analogía: `GestorCaptura` debe ser el director de una orquesta. La cámara, el codificador y la galería pueden ser componentes distintos, pero deben responder a las mismas órdenes y al mismo estado. Pertenecer al flujo del gestor no significa concentrar todo el programa en un único archivo.
 
-## 3. Errores y funciones incompletas
+## 3. Errores y funciones incompletas detectados inicialmente
 
 Las líneas indicadas corresponden al código conservado durante esta revisión. P0 bloquea compilación o puesta en marcha; P1 impide un objetivo principal o compromete la integridad de las capturas; P2 afecta robustez, mantenimiento o comunicación del estado. «Confirmado» significa visible en el código o la serialización, no reproducido en hardware.
 
@@ -241,7 +267,9 @@ Se han comprobado referencias C# y GUID en `Assets`, `Packages` y `ProjectSettin
 
 Los dos archivos de la raíz no causaban errores de compilación de Unity mientras permanecían fuera de sus carpetas importadas. Su eliminación limpia prototipos ajenos al flujo; no se presenta como una reparación de la compilación principal.
 
-### 6.2 Código conservado y retirada condicionada
+### 6.2 Decisión inicial de conservación y retirada condicionada
+
+Esta tabla documenta la decisión inicial. La retirada posterior de los cinco scripts sustituidos está registrada en el estado de implementación al principio del documento.
 
 | Elemento | Decisión |
 | --- | --- |
@@ -369,7 +397,7 @@ Automatizar pruebas EditMode de validación de configuración, transiciones, tim
 
 Para registrar resultados, usar una ficha con modelo de Quest, versión de Horizon OS, versión de app/SDK, resolución por ojo, perfil, duración, FPS efectivos, frames descartados, memoria máxima y resultado de reproducción. Fijar los límites finales de rendimiento después de la prueba técnica, distinguiendo metas propuestas de medidas obtenidas.
 
-## 9. Comprobaciones de esta entrega y próximo paso
+## 9. Registro histórico de la entrega inicial del plan
 
 Se ha realizado análisis estático del código propio, lectura del Word, inspección de las dos escenas, búsqueda de referencias por nombre y GUID, y contraste de la API local MRUK 83. Se han comprobado los candidatos antes de eliminarlos y la verificación posterior confirma que los GUID retirados no permanecen referenciados en `Assets`, `Packages` o `ProjectSettings`. Los hashes de ambas escenas permanecen iguales a los registrados antes de la limpieza. También se han comprobado la codificación del Markdown, el cierre de sus bloques de código y `git diff --check`, sin errores de espacios en el diff.
 

@@ -11,6 +11,8 @@ Aplicación Unity para capturar el entorno con las cámaras físicas izquierda y
 
 La interfaz se genera al iniciar a partir del Canvas y botón de la escena. Se coloca a 1,4 m frente al usuario. En Quest, apuntar con el controlador y pulsar/soltar el gatillo; se utiliza el derecho si está disponible y, en su defecto, el izquierdo. Sin controlador XR, el módulo habitual conserva la interacción de ratón. Solo hay un emisor de clics XR para evitar capturas dobles.
 
+En Quest, el panel se recoloca después de recibir seguimiento válido de la cabeza y al regresar a la aplicación. Permanece fijo para poder apuntar a sus botones. Si queda fuera de la vista, pulsa hacia dentro el joystick de cualquiera de los mandos para traerlo delante de ti. Este ajuste del 30/09/2026 todavía no se ha compilado ni comprobado en dispositivo; corrige la colocación prematura, pero no confirma por sí solo la causa del panel invisible.
+
 ## Funciones implementadas
 
 - Fotos PNG/JPEG a la resolución efectiva de las cámaras, en disposición SBS izquierda/derecha; calidad JPEG persistente.

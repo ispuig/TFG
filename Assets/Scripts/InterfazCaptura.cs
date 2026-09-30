@@ -42,6 +42,8 @@ public sealed class InterfazCaptura : MonoBehaviour
     private TMP_Text tiempoVideo;
     private RawImage previa;
     private bool confirmarDescarte;
+    private bool recolocacionPendiente = true, joystickAnterior;
+    private float seguimientoEstableDesde = -1f;
     private bool GrabacionEnCurso => gestor && (gestor.Control.Estado == EstadoCaptura.Grabando || gestor.Control.Estado == EstadoCaptura.Finalizando);
 
     private void Start()
@@ -80,10 +82,23 @@ public sealed class InterfazCaptura : MonoBehaviour
         marca.color = new Color(0.3f, 1f, 0.75f);
         marca.raycastTarget = false;
         cursor.gameObject.SetActive(false);
+        RecentrarInterfaz(); // Posición inicial para Editor; en XR se corrige al recibir seguimiento válido.
+        Mostrar("Captura");
+        Debug.Log("[TFG/UI] Interfaz creada. Pulsa el joystick de cualquier mando para centrar el panel.", this);
+    }
+
+    public void RecentrarInterfaz()
+    {
+        if (!lienzo) return;
         var ancla = rig ? rig.centerEyeAnchor : Camera.main ? Camera.main.transform : null;
         if (ancla)
         {
-            lienzo.transform.SetPositionAndRotation(ancla.position + ancla.forward * 1.4f, ancla.rotation);
+            // Mantenerlo vertical y a la altura de los ojos aunque se mire hacia el suelo.
+            Vector3 frente = Vector3.ProjectOnPlane(ancla.forward, Vector3.up);
+            if (frente.sqrMagnitude < 0.001f) frente = Vector3.forward;
+            frente.Normalize();
+            lienzo.transform.SetPositionAndRotation(ancla.position + frente * 1.4f,
+                Quaternion.LookRotation(frente, Vector3.up));
             lienzo.transform.localScale = Vector3.one * 0.002f;
             Camera camaraUI = ancla.GetComponent<Camera>();
             if (camaraUI) lienzo.worldCamera = camaraUI;
@@ -93,7 +108,54 @@ public sealed class InterfazCaptura : MonoBehaviour
                     camara.cullingMask |= 1 << lienzo.gameObject.layer;
             else if (camaraUI) camaraUI.cullingMask |= 1 << lienzo.gameObject.layer;
         }
-        Mostrar("Captura");
+    }
+
+    private void LateUpdate()
+    {
+        if (!estado || !lienzo) return;
+        bool joystick = JoystickPulsado(XRNode.RightHand) | JoystickPulsado(XRNode.LeftHand);
+        if (joystick && !joystickAnterior) SolicitarRecolocacion();
+        joystickAnterior = joystick;
+
+        var cabeza = InputDevices.GetDeviceAtXRNode(XRNode.Head);
+        bool seguida = cabeza.isValid && cabeza.TryGetFeatureValue(CommonUsages.isTracked, out bool valor) && valor;
+        if (!seguida)
+        {
+            // Start puede ejecutarse antes de que OpenXR proporcione la primera pose.
+            // También se pierde el seguimiento al quitarse las gafas.
+            SolicitarRecolocacion();
+            return;
+        }
+        if (!recolocacionPendiente) return;
+        if (seguimientoEstableDesde < 0f) seguimientoEstableDesde = Time.unscaledTime;
+        if (Time.unscaledTime - seguimientoEstableDesde < 0.25f) return;
+        var ancla = rig ? rig.centerEyeAnchor : Camera.main ? Camera.main.transform : null;
+        if (!ancla) return;
+        RecentrarInterfaz();
+        recolocacionPendiente = false;
+        Debug.Log("[TFG/UI] Panel centrado con seguimiento de cabeza válido.", this);
+    }
+
+    private static bool JoystickPulsado(XRNode mano)
+    {
+        var dispositivo = InputDevices.GetDeviceAtXRNode(mano);
+        return dispositivo.isValid && dispositivo.TryGetFeatureValue(CommonUsages.primary2DAxisClick, out bool pulsado) && pulsado;
+    }
+
+    private void SolicitarRecolocacion()
+    {
+        recolocacionPendiente = true;
+        seguimientoEstableDesde = -1f;
+    }
+
+    private void OnApplicationFocus(bool tieneFoco)
+    {
+        if (tieneFoco) SolicitarRecolocacion();
+    }
+
+    private void OnApplicationPause(bool pausada)
+    {
+        if (!pausada) SolicitarRecolocacion();
     }
 
     public void AccionPrincipal()
